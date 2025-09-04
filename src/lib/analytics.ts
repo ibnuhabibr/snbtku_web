@@ -18,17 +18,18 @@ class Analytics {
   private userId: string | null = null;
 
   constructor() {
-    this.isEnabled = import.meta.env.PROD && !!import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+    this.isEnabled =
+      import.meta.env.PROD && !!import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
   }
 
   // Initialize analytics with user ID
   init(userId?: string) {
     this.userId = userId || null;
-    
-    if (this.isEnabled && typeof window !== 'undefined') {
+
+    if (this.isEnabled && typeof window !== "undefined") {
       // Initialize Google Analytics
       this.initGoogleAnalytics();
-      
+
       // Track page view
       this.trackPageView(window.location.pathname);
     }
@@ -39,19 +40,19 @@ class Analytics {
     if (!gaId) return;
 
     // Load Google Analytics script
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
     document.head.appendChild(script);
 
     // Initialize gtag
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function() {
+    window.gtag = function () {
       window.dataLayer.push(arguments);
     };
-    
-    window.gtag('js', new Date());
-    window.gtag('config', gaId, {
+
+    window.gtag("js", new Date());
+    window.gtag("config", gaId, {
       user_id: this.userId,
       send_page_view: false, // We'll handle this manually
     });
@@ -61,15 +62,15 @@ class Analytics {
   trackPageView(path: string, title?: string) {
     if (!this.isEnabled) return;
 
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'page_view', {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "page_view", {
         page_path: path,
         page_title: title || document.title,
         user_id: this.userId,
       });
     }
 
-    console.log('📊 Page View:', { path, title, userId: this.userId });
+    console.log("📊 Page View:", { path, title, userId: this.userId });
   }
 
   // Track custom events
@@ -82,17 +83,21 @@ class Analytics {
       timestamp: Date.now(),
     };
 
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', event.name, eventData);
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", event.name, eventData);
     }
 
-    console.log('📊 Event:', event.name, eventData);
+    console.log("📊 Event:", event.name, eventData);
   }
 
   // Track user interactions
-  trackUserAction(action: string, category: string, properties?: Record<string, any>) {
+  trackUserAction(
+    action: string,
+    category: string,
+    properties?: Record<string, any>
+  ) {
     this.trackEvent({
-      name: 'user_action',
+      name: "user_action",
       properties: {
         action,
         category,
@@ -110,7 +115,7 @@ class Analytics {
     score?: number;
   }) {
     this.trackEvent({
-      name: 'learning_progress',
+      name: "learning_progress",
       properties: data,
     });
   }
@@ -118,7 +123,7 @@ class Analytics {
   // Track quiz/tryout completion
   trackQuizCompletion(data: {
     quizId: string;
-    quizType: 'practice' | 'tryout';
+    quizType: "practice" | "tryout";
     score: number;
     totalQuestions: number;
     correctAnswers: number;
@@ -126,7 +131,7 @@ class Analytics {
     subject: string;
   }) {
     this.trackEvent({
-      name: 'quiz_completed',
+      name: "quiz_completed",
       properties: data,
     });
   }
@@ -136,7 +141,7 @@ class Analytics {
     if (!this.isEnabled) return;
 
     this.trackEvent({
-      name: 'performance_metric',
+      name: "performance_metric",
       properties: {
         metric_name: metric.name,
         metric_value: metric.value,
@@ -151,7 +156,7 @@ class Analytics {
     if (!this.isEnabled) return;
 
     this.trackEvent({
-      name: 'error',
+      name: "error",
       properties: {
         error_message: error.message,
         error_stack: error.stack,
@@ -165,8 +170,8 @@ class Analytics {
   setUserProperties(properties: Record<string, any>) {
     if (!this.isEnabled) return;
 
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('config', import.meta.env.VITE_GOOGLE_ANALYTICS_ID, {
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("config", import.meta.env.VITE_GOOGLE_ANALYTICS_ID, {
         custom_map: properties,
       });
     }
@@ -175,9 +180,9 @@ class Analytics {
   // Update user ID
   setUserId(userId: string) {
     this.userId = userId;
-    
-    if (this.isEnabled && typeof window !== 'undefined' && window.gtag) {
-      window.gtag('config', import.meta.env.VITE_GOOGLE_ANALYTICS_ID, {
+
+    if (this.isEnabled && typeof window !== "undefined" && window.gtag) {
+      window.gtag("config", import.meta.env.VITE_GOOGLE_ANALYTICS_ID, {
         user_id: userId,
       });
     }
@@ -202,18 +207,20 @@ export class PerformanceMonitor {
 
   // Measure and track page load time
   trackPageLoadTime() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-    window.addEventListener('load', () => {
+    window.addEventListener("load", () => {
       setTimeout(() => {
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        const navigation = performance.getEntriesByType(
+          "navigation"
+        )[0] as PerformanceNavigationTiming;
         if (navigation) {
           const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-          
+
           this.analytics.trackPerformance({
-            name: 'page_load_time',
+            name: "page_load_time",
             value: loadTime,
-            unit: 'ms',
+            unit: "ms",
             timestamp: Date.now(),
           });
         }
@@ -223,34 +230,36 @@ export class PerformanceMonitor {
 
   // Track Core Web Vitals
   trackWebVitals() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     // Track LCP (Largest Contentful Paint)
     new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
-      
+
       this.analytics.trackPerformance({
-        name: 'largest_contentful_paint',
+        name: "largest_contentful_paint",
         value: lastEntry.startTime,
-        unit: 'ms',
+        unit: "ms",
         timestamp: Date.now(),
       });
-    }).observe({ entryTypes: ['largest-contentful-paint'] });
+    }).observe({ entryTypes: ["largest-contentful-paint"] });
 
     // Track FID (First Input Delay)
     new PerformanceObserver((list) => {
       const entries = list.getEntries();
       entries.forEach((entry) => {
         this.analytics.trackPerformance({
-          name: 'first_input_delay',
+          name: "first_input_delay",
           // @ts-ignore
-          value: (entry as any).processingStart ? (entry as any).processingStart - entry.startTime : 0,
-          unit: 'ms',
+          value: (entry as any).processingStart
+            ? (entry as any).processingStart - entry.startTime
+            : 0,
+          unit: "ms",
           timestamp: Date.now(),
         });
       });
-    }).observe({ entryTypes: ['first-input'] });
+    }).observe({ entryTypes: ["first-input"] });
   }
 }
 
@@ -270,11 +279,16 @@ declare global {
 export const useAnalytics = () => {
   return {
     trackEvent: (event: AnalyticsEvent) => analytics.trackEvent(event),
-    trackUserAction: (action: string, category: string, properties?: Record<string, any>) => 
-      analytics.trackUserAction(action, category, properties),
-    trackLearningProgress: (data: Parameters<typeof analytics.trackLearningProgress>[0]) => 
-      analytics.trackLearningProgress(data),
-    trackQuizCompletion: (data: Parameters<typeof analytics.trackQuizCompletion>[0]) => 
-      analytics.trackQuizCompletion(data),
+    trackUserAction: (
+      action: string,
+      category: string,
+      properties?: Record<string, any>
+    ) => analytics.trackUserAction(action, category, properties),
+    trackLearningProgress: (
+      data: Parameters<typeof analytics.trackLearningProgress>[0]
+    ) => analytics.trackLearningProgress(data),
+    trackQuizCompletion: (
+      data: Parameters<typeof analytics.trackQuizCompletion>[0]
+    ) => analytics.trackQuizCompletion(data),
   };
 };

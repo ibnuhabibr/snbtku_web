@@ -2,101 +2,113 @@
  * Service untuk mengelola tryout di Firestore
  */
 
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit as firestoreLimit,
-  startAfter,
-  Timestamp,
-  DocumentData,
-  QueryDocumentSnapshot,
-  writeBatch,
-  increment
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { 
+import { db } from "@/lib/firebase";
+import { Question, UserAnswer } from "@/models/practice";
+import {
+  ScheduledTryout,
+  SubtestResult,
   Tryout,
+  TryoutFilter,
   TryoutResult,
   TryoutStats,
-  ScheduledTryout,
-  TryoutFilter,
-  TryoutStatus,
-  SubtestResult
-} from '@/models/tryout';
-import { Question, UserAnswer } from '@/models/practice';
-import { getQuestionById } from './practiceService';
+} from "@/models/tryout";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  DocumentData,
+  limit as firestoreLimit,
+  getDoc,
+  getDocs,
+  increment,
+  orderBy,
+  query,
+  QueryDocumentSnapshot,
+  startAfter,
+  Timestamp,
+  updateDoc,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+import { getQuestionById } from "./practiceService";
 
 // Nama koleksi di Firestore
-const TRYOUTS_COLLECTION = 'tryouts';
-const TRYOUT_RESULTS_COLLECTION = 'tryoutResults';
-const SCHEDULED_TRYOUTS_COLLECTION = 'scheduledTryouts';
-const TRYOUT_REGISTRATIONS_COLLECTION = 'tryoutRegistrations';
+const TRYOUTS_COLLECTION = "tryouts";
+const TRYOUT_RESULTS_COLLECTION = "tryoutResults";
+const SCHEDULED_TRYOUTS_COLLECTION = "scheduledTryouts";
+const TRYOUT_REGISTRATIONS_COLLECTION = "tryoutRegistrations";
 
 /**
  * Mengambil semua tryout dengan filter opsional
  */
 export const getTryouts = async (
-  filter?: TryoutFilter, 
-  lastDoc?: QueryDocumentSnapshot<DocumentData>, 
+  filter?: TryoutFilter,
+  lastDoc?: QueryDocumentSnapshot<DocumentData>,
   pageSize: number = 10
-): Promise<{ tryouts: Tryout[], lastDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
+): Promise<{
+  tryouts: Tryout[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+}> => {
   try {
     let tryoutsQuery = collection(db, TRYOUTS_COLLECTION);
     let constraints = [];
-    
+
     // Menerapkan filter
     if (filter) {
       if (filter.status) {
-        constraints.push(where('status', '==', filter.status));
+        constraints.push(where("status", "==", filter.status));
       }
-      
+
       if (filter.difficulty) {
-        constraints.push(where('difficulty', '==', filter.difficulty));
+        constraints.push(where("difficulty", "==", filter.difficulty));
       }
-      
+
       if (filter.subtest) {
-        constraints.push(where('subtests', 'array-contains', { name: filter.subtest }));
+        constraints.push(
+          where("subtests", "array-contains", { name: filter.subtest })
+        );
       }
     }
-    
+
     // Menambahkan pengurutan berdasarkan tanggal pembaruan
-    constraints.push(orderBy('updatedAt', 'desc'));
-    
+    constraints.push(orderBy("updatedAt", "desc"));
+
     // Membuat query dengan semua constraint
     let tryoutsRef = query(tryoutsQuery, ...constraints);
-    
+
     // Menambahkan pagination jika ada lastDoc
     if (lastDoc) {
-      tryoutsRef = query(tryoutsRef, startAfter(lastDoc), firestoreLimit(pageSize));
+      tryoutsRef = query(
+        tryoutsRef,
+        startAfter(lastDoc),
+        firestoreLimit(pageSize)
+      );
     } else {
       tryoutsRef = query(tryoutsRef, firestoreLimit(pageSize));
     }
-    
+
     const snapshot = await getDocs(tryoutsRef);
-    const lastVisible = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-    
-    const tryouts = snapshot.docs.map(doc => {
+    const lastVisible =
+      snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+
+    const tryouts = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
         id: doc.id,
         createdAt: data.createdAt?.toDate(),
         updatedAt: data.updatedAt?.toDate(),
-        startTime: typeof data.startTime === 'string' ? data.startTime : data.startTime?.toDate()
+        startTime:
+          typeof data.startTime === "string"
+            ? data.startTime
+            : data.startTime?.toDate(),
       } as Tryout;
     });
-    
+
     return { tryouts, lastDoc: lastVisible };
   } catch (error) {
-    console.error('Error getting tryouts:', error);
+    console.error("Error getting tryouts:", error);
     throw error;
   }
 };
@@ -108,21 +120,24 @@ export const getTryoutById = async (id: string): Promise<Tryout | null> => {
   try {
     const tryoutRef = doc(db, TRYOUTS_COLLECTION, id);
     const tryoutDoc = await getDoc(tryoutRef);
-    
+
     if (!tryoutDoc.exists()) {
       return null;
     }
-    
+
     const data = tryoutDoc.data();
     return {
       ...data,
       id: tryoutDoc.id,
       createdAt: data.createdAt?.toDate(),
       updatedAt: data.updatedAt?.toDate(),
-      startTime: typeof data.startTime === 'string' ? data.startTime : data.startTime?.toDate()
+      startTime:
+        typeof data.startTime === "string"
+          ? data.startTime
+          : data.startTime?.toDate(),
     } as Tryout;
   } catch (error) {
-    console.error('Error getting tryout by ID:', error);
+    console.error("Error getting tryout by ID:", error);
     throw error;
   }
 };
@@ -130,7 +145,9 @@ export const getTryoutById = async (id: string): Promise<Tryout | null> => {
 /**
  * Menambahkan tryout baru
  */
-export const addTryout = async (tryout: Omit<Tryout, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+export const addTryout = async (
+  tryout: Omit<Tryout, "id" | "createdAt" | "updatedAt">
+): Promise<string> => {
   try {
     const now = Timestamp.now();
     const tryoutData = {
@@ -138,13 +155,16 @@ export const addTryout = async (tryout: Omit<Tryout, 'id' | 'createdAt' | 'updat
       participants: 0, // Mulai dengan 0 peserta
       createdAt: now,
       updatedAt: now,
-      startTime: typeof tryout.startTime === 'string' ? tryout.startTime : Timestamp.fromDate(tryout.startTime as Date)
+      startTime:
+        typeof tryout.startTime === "string"
+          ? tryout.startTime
+          : Timestamp.fromDate(tryout.startTime as Date),
     };
-    
+
     const docRef = await addDoc(collection(db, TRYOUTS_COLLECTION), tryoutData);
     return docRef.id;
   } catch (error) {
-    console.error('Error adding tryout:', error);
+    console.error("Error adding tryout:", error);
     throw error;
   }
 };
@@ -152,22 +172,28 @@ export const addTryout = async (tryout: Omit<Tryout, 'id' | 'createdAt' | 'updat
 /**
  * Memperbarui tryout
  */
-export const updateTryout = async (id: string, tryout: Partial<Tryout>): Promise<void> => {
+export const updateTryout = async (
+  id: string,
+  tryout: Partial<Tryout>
+): Promise<void> => {
   try {
     const tryoutRef = doc(db, TRYOUTS_COLLECTION, id);
-    
+
     // Pastikan updatedAt diperbarui
     const updateData = {
       ...tryout,
       updatedAt: Timestamp.now(),
-      startTime: typeof tryout.startTime === 'string' ? 
-        tryout.startTime : 
-        tryout.startTime ? Timestamp.fromDate(tryout.startTime as Date) : undefined
+      startTime:
+        typeof tryout.startTime === "string"
+          ? tryout.startTime
+          : tryout.startTime
+          ? Timestamp.fromDate(tryout.startTime as Date)
+          : undefined,
     };
-    
+
     await updateDoc(tryoutRef, updateData);
   } catch (error) {
-    console.error('Error updating tryout:', error);
+    console.error("Error updating tryout:", error);
     throw error;
   }
 };
@@ -180,19 +206,19 @@ export const deleteTryout = async (id: string): Promise<void> => {
     // Periksa apakah ada hasil tryout yang menggunakan tryout ini
     const resultsRef = query(
       collection(db, TRYOUT_RESULTS_COLLECTION),
-      where('tryoutId', '==', id)
+      where("tryoutId", "==", id)
     );
-    
+
     const snapshot = await getDocs(resultsRef);
-    
+
     if (!snapshot.empty) {
-      throw new Error('Cannot delete tryout that has results');
+      throw new Error("Cannot delete tryout that has results");
     }
-    
+
     const tryoutRef = doc(db, TRYOUTS_COLLECTION, id);
     await deleteDoc(tryoutRef);
   } catch (error) {
-    console.error('Error deleting tryout:', error);
+    console.error("Error deleting tryout:", error);
     throw error;
   }
 };
@@ -200,32 +226,35 @@ export const deleteTryout = async (id: string): Promise<void> => {
 /**
  * Mengambil soal-soal untuk subtest dalam tryout
  */
-export const getTryoutSubtestQuestions = async (tryoutId: string, subtestName: string): Promise<Question[]> => {
+export const getTryoutSubtestQuestions = async (
+  tryoutId: string,
+  subtestName: string
+): Promise<Question[]> => {
   try {
     const tryout = await getTryoutById(tryoutId);
-    
+
     if (!tryout) {
-      throw new Error('Tryout not found');
+      throw new Error("Tryout not found");
     }
-    
-    const subtest = tryout.subtests.find(s => s.name === subtestName);
-    
+
+    const subtest = tryout.subtests.find((s) => s.name === subtestName);
+
     if (!subtest || !subtest.questionIds) {
-      throw new Error('Subtest not found or no questions available');
+      throw new Error("Subtest not found or no questions available");
     }
-    
+
     const questions: Question[] = [];
-    
+
     for (const questionId of subtest.questionIds) {
       const question = await getQuestionById(questionId);
       if (question) {
         questions.push(question);
       }
     }
-    
+
     return questions;
   } catch (error) {
-    console.error('Error getting tryout subtest questions:', error);
+    console.error("Error getting tryout subtest questions:", error);
     throw error;
   }
 };
@@ -233,24 +262,29 @@ export const getTryoutSubtestQuestions = async (tryoutId: string, subtestName: s
 /**
  * Menyimpan hasil tryout
  */
-export const saveTryoutResult = async (result: Omit<TryoutResult, 'id'>): Promise<string> => {
+export const saveTryoutResult = async (
+  result: Omit<TryoutResult, "id">
+): Promise<string> => {
   try {
     const resultData = {
       ...result,
-      completedDate: Timestamp.now()
+      completedDate: Timestamp.now(),
     };
-    
-    const docRef = await addDoc(collection(db, TRYOUT_RESULTS_COLLECTION), resultData);
-    
+
+    const docRef = await addDoc(
+      collection(db, TRYOUT_RESULTS_COLLECTION),
+      resultData
+    );
+
     // Update jumlah peserta tryout
     const tryoutRef = doc(db, TRYOUTS_COLLECTION, result.tryoutId);
     await updateDoc(tryoutRef, {
-      participants: increment(1)
+      participants: increment(1),
     });
-    
+
     return docRef.id;
   } catch (error) {
-    console.error('Error saving tryout result:', error);
+    console.error("Error saving tryout result:", error);
     throw error;
   }
 };
@@ -258,23 +292,25 @@ export const saveTryoutResult = async (result: Omit<TryoutResult, 'id'>): Promis
 /**
  * Mengambil hasil tryout berdasarkan ID
  */
-export const getTryoutResultById = async (id: string): Promise<TryoutResult | null> => {
+export const getTryoutResultById = async (
+  id: string
+): Promise<TryoutResult | null> => {
   try {
     const resultRef = doc(db, TRYOUT_RESULTS_COLLECTION, id);
     const resultDoc = await getDoc(resultRef);
-    
+
     if (!resultDoc.exists()) {
       return null;
     }
-    
+
     const data = resultDoc.data();
     return {
       ...data,
       id: resultDoc.id,
-      completedDate: data.completedDate?.toDate()
+      completedDate: data.completedDate?.toDate(),
     } as TryoutResult;
   } catch (error) {
-    console.error('Error getting tryout result by ID:', error);
+    console.error("Error getting tryout result by ID:", error);
     throw error;
   }
 };
@@ -282,30 +318,33 @@ export const getTryoutResultById = async (id: string): Promise<TryoutResult | nu
 /**
  * Mengambil hasil tryout untuk pengguna tertentu
  */
-export const getUserTryoutResults = async (userId: string, limit?: number): Promise<TryoutResult[]> => {
+export const getUserTryoutResults = async (
+  userId: string,
+  limit?: number
+): Promise<TryoutResult[]> => {
   try {
     let resultsRef = query(
       collection(db, TRYOUT_RESULTS_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('completedDate', 'desc')
+      where("userId", "==", userId),
+      orderBy("completedDate", "desc")
     );
-    
+
     if (limit) {
       resultsRef = query(resultsRef, firestoreLimit(limit));
     }
-    
+
     const snapshot = await getDocs(resultsRef);
-    
-    return snapshot.docs.map(doc => {
+
+    return snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
         id: doc.id,
-        completedDate: data.completedDate?.toDate()
+        completedDate: data.completedDate?.toDate(),
       } as TryoutResult;
     });
   } catch (error) {
-    console.error('Error getting user tryout results:', error);
+    console.error("Error getting user tryout results:", error);
     throw error;
   }
 };
@@ -313,47 +352,50 @@ export const getUserTryoutResults = async (userId: string, limit?: number): Prom
 /**
  * Mengambil statistik tryout untuk pengguna tertentu
  */
-export const getUserTryoutStats = async (userId: string): Promise<TryoutStats> => {
+export const getUserTryoutStats = async (
+  userId: string
+): Promise<TryoutStats> => {
   try {
     // Ambil semua hasil tryout pengguna
     const userResults = await getUserTryoutResults(userId);
-    
+
     // Hitung statistik
     const totalTryOuts = userResults.length;
     const completed = userResults.length;
-    
+
     // Hitung skor rata-rata dan skor terbaik
     let totalScore = 0;
     let bestScore = 0;
-    
-    userResults.forEach(result => {
+
+    userResults.forEach((result) => {
       totalScore += result.score;
       if (result.score > bestScore) {
         bestScore = result.score;
       }
     });
-    
-    const averageScore = totalTryOuts > 0 ? Math.round(totalScore / totalTryOuts) : 0;
-    
+
+    const averageScore =
+      totalTryOuts > 0 ? Math.round(totalScore / totalTryOuts) : 0;
+
     // Ambil peringkat pengguna (implementasi sederhana)
     // Dalam implementasi nyata, ini mungkin memerlukan perhitungan yang lebih kompleks
     let rank = 0;
-    
+
     if (userResults.length > 0) {
       // Ambil hasil tryout terbaru
       const latestResult = userResults[0];
       rank = latestResult.rank;
     }
-    
+
     return {
       totalTryOuts,
       completed,
       averageScore,
       bestScore,
-      rank
+      rank,
     };
   } catch (error) {
-    console.error('Error getting user tryout stats:', error);
+    console.error("Error getting user tryout stats:", error);
     throw error;
   }
 };
@@ -361,19 +403,25 @@ export const getUserTryoutStats = async (userId: string): Promise<TryoutStats> =
 /**
  * Menambahkan tryout terjadwal baru
  */
-export const addScheduledTryout = async (scheduledTryout: Omit<ScheduledTryout, 'id'>): Promise<string> => {
+export const addScheduledTryout = async (
+  scheduledTryout: Omit<ScheduledTryout, "id">
+): Promise<string> => {
   try {
     const scheduledTryoutData = {
       ...scheduledTryout,
-      date: typeof scheduledTryout.date === 'string' ? 
-        scheduledTryout.date : 
-        Timestamp.fromDate(scheduledTryout.date as Date)
+      date:
+        typeof scheduledTryout.date === "string"
+          ? scheduledTryout.date
+          : Timestamp.fromDate(scheduledTryout.date as Date),
     };
-    
-    const docRef = await addDoc(collection(db, SCHEDULED_TRYOUTS_COLLECTION), scheduledTryoutData);
+
+    const docRef = await addDoc(
+      collection(db, SCHEDULED_TRYOUTS_COLLECTION),
+      scheduledTryoutData
+    );
     return docRef.id;
   } catch (error) {
-    console.error('Error adding scheduled tryout:', error);
+    console.error("Error adding scheduled tryout:", error);
     throw error;
   }
 };
@@ -385,22 +433,22 @@ export const getScheduledTryouts = async (): Promise<ScheduledTryout[]> => {
   try {
     const scheduledTryoutsRef = query(
       collection(db, SCHEDULED_TRYOUTS_COLLECTION),
-      where('status', '==', 'open'),
-      orderBy('date', 'asc')
+      where("status", "==", "open"),
+      orderBy("date", "asc")
     );
-    
+
     const snapshot = await getDocs(scheduledTryoutsRef);
-    
-    return snapshot.docs.map(doc => {
+
+    return snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
         id: doc.id,
-        date: typeof data.date === 'string' ? data.date : data.date?.toDate()
+        date: typeof data.date === "string" ? data.date : data.date?.toDate(),
       } as ScheduledTryout;
     });
   } catch (error) {
-    console.error('Error getting scheduled tryouts:', error);
+    console.error("Error getting scheduled tryouts:", error);
     throw error;
   }
 };
@@ -408,30 +456,41 @@ export const getScheduledTryouts = async (): Promise<ScheduledTryout[]> => {
 /**
  * Mendaftarkan pengguna untuk tryout terjadwal
  */
-export const registerForScheduledTryout = async (userId: string, scheduledTryoutId: string): Promise<void> => {
+export const registerForScheduledTryout = async (
+  userId: string,
+  scheduledTryoutId: string
+): Promise<void> => {
   try {
     // Periksa apakah pengguna sudah terdaftar
-    const registrationRef = doc(db, `${TRYOUT_REGISTRATIONS_COLLECTION}/${scheduledTryoutId}/users`, userId);
+    const registrationRef = doc(
+      db,
+      `${TRYOUT_REGISTRATIONS_COLLECTION}/${scheduledTryoutId}/users`,
+      userId
+    );
     const registrationDoc = await getDoc(registrationRef);
-    
+
     if (registrationDoc.exists()) {
-      throw new Error('User already registered for this tryout');
+      throw new Error("User already registered for this tryout");
     }
-    
+
     // Tambahkan pendaftaran
     await updateDoc(registrationRef, {
       userId,
       registeredAt: Timestamp.now(),
-      status: 'registered'
+      status: "registered",
     });
-    
+
     // Update jumlah peserta
-    const scheduledTryoutRef = doc(db, SCHEDULED_TRYOUTS_COLLECTION, scheduledTryoutId);
+    const scheduledTryoutRef = doc(
+      db,
+      SCHEDULED_TRYOUTS_COLLECTION,
+      scheduledTryoutId
+    );
     await updateDoc(scheduledTryoutRef, {
-      participants: increment(1)
+      participants: increment(1),
     });
   } catch (error) {
-    console.error('Error registering for scheduled tryout:', error);
+    console.error("Error registering for scheduled tryout:", error);
     throw error;
   }
 };
@@ -439,14 +498,21 @@ export const registerForScheduledTryout = async (userId: string, scheduledTryout
 /**
  * Memeriksa apakah pengguna terdaftar untuk tryout terjadwal
  */
-export const isUserRegisteredForTryout = async (userId: string, scheduledTryoutId: string): Promise<boolean> => {
+export const isUserRegisteredForTryout = async (
+  userId: string,
+  scheduledTryoutId: string
+): Promise<boolean> => {
   try {
-    const registrationRef = doc(db, `${TRYOUT_REGISTRATIONS_COLLECTION}/${scheduledTryoutId}/users`, userId);
+    const registrationRef = doc(
+      db,
+      `${TRYOUT_REGISTRATIONS_COLLECTION}/${scheduledTryoutId}/users`,
+      userId
+    );
     const registrationDoc = await getDoc(registrationRef);
-    
+
     return registrationDoc.exists();
   } catch (error) {
-    console.error('Error checking if user is registered for tryout:', error);
+    console.error("Error checking if user is registered for tryout:", error);
     throw error;
   }
 };
@@ -454,25 +520,27 @@ export const isUserRegisteredForTryout = async (userId: string, scheduledTryoutI
 /**
  * Mengambil tryout terjadwal yang diikuti oleh pengguna
  */
-export const getUserScheduledTryouts = async (userId: string): Promise<ScheduledTryout[]> => {
+export const getUserScheduledTryouts = async (
+  userId: string
+): Promise<ScheduledTryout[]> => {
   try {
     const scheduledTryouts = await getScheduledTryouts();
     const userScheduledTryouts: ScheduledTryout[] = [];
-    
+
     for (const tryout of scheduledTryouts) {
       const isRegistered = await isUserRegisteredForTryout(userId, tryout.id);
-      
+
       if (isRegistered) {
         userScheduledTryouts.push({
           ...tryout,
-          status: 'registered'
+          status: "registered",
         });
       }
     }
-    
+
     return userScheduledTryouts;
   } catch (error) {
-    console.error('Error getting user scheduled tryouts:', error);
+    console.error("Error getting user scheduled tryouts:", error);
     throw error;
   }
 };
@@ -481,21 +549,21 @@ export const getUserScheduledTryouts = async (userId: string): Promise<Scheduled
  * Membuat tryout dengan soal-soal untuk setiap subtest
  */
 export const createTryoutWithQuestions = async (
-  tryout: Omit<Tryout, 'id' | 'createdAt' | 'updatedAt'>,
+  tryout: Omit<Tryout, "id" | "createdAt" | "updatedAt">,
   subtestQuestions: Record<string, string[]> // Map dari nama subtest ke array ID soal
 ): Promise<string> => {
   try {
     const batch = writeBatch(db);
     const now = Timestamp.now();
-    
+
     // Perbarui subtests dengan questionIds
-    const updatedSubtests = tryout.subtests.map(subtest => {
+    const updatedSubtests = tryout.subtests.map((subtest) => {
       return {
         ...subtest,
-        questionIds: subtestQuestions[subtest.name] || []
+        questionIds: subtestQuestions[subtest.name] || [],
       };
     });
-    
+
     // Tambahkan tryout dengan referensi ke soal-soal
     const tryoutRef = doc(collection(db, TRYOUTS_COLLECTION));
     batch.set(tryoutRef, {
@@ -504,15 +572,16 @@ export const createTryoutWithQuestions = async (
       participants: 0,
       createdAt: now,
       updatedAt: now,
-      startTime: typeof tryout.startTime === 'string' ? 
-        tryout.startTime : 
-        Timestamp.fromDate(tryout.startTime as Date)
+      startTime:
+        typeof tryout.startTime === "string"
+          ? tryout.startTime
+          : Timestamp.fromDate(tryout.startTime as Date),
     });
-    
+
     await batch.commit();
     return tryoutRef.id;
   } catch (error) {
-    console.error('Error creating tryout with questions:', error);
+    console.error("Error creating tryout with questions:", error);
     throw error;
   }
 };
@@ -526,32 +595,37 @@ export const calculateTryoutScore = async (
 ): Promise<SubtestResult[]> => {
   try {
     const tryout = await getTryoutById(tryoutId);
-    
+
     if (!tryout) {
-      throw new Error('Tryout not found');
+      throw new Error("Tryout not found");
     }
-    
+
     const subtestResults: SubtestResult[] = [];
-    
+
     for (const subtest of tryout.subtests) {
       const answers = subtestAnswers[subtest.name] || [];
-      const correctAnswers = answers.filter(answer => answer.isCorrect).length;
+      const correctAnswers = answers.filter(
+        (answer) => answer.isCorrect
+      ).length;
       const score = Math.round((correctAnswers / subtest.questions) * 100);
       const maxScore = 100;
-      
+
       subtestResults.push({
         name: subtest.name,
         score,
         maxScore,
         percentage: score,
         answers,
-        timeSpent: answers.reduce((total, answer) => total + answer.timeSpent, 0)
+        timeSpent: answers.reduce(
+          (total, answer) => total + answer.timeSpent,
+          0
+        ),
       });
     }
-    
+
     return subtestResults;
   } catch (error) {
-    console.error('Error calculating tryout score:', error);
+    console.error("Error calculating tryout score:", error);
     throw error;
   }
 };

@@ -1,9 +1,18 @@
+import { Button } from "@/components/ui/button";
+import UserMenu from "@/components/UserMenu";
+import { cn } from "@/lib/utils";
+import {
+  BookOpen,
+  GraduationCap,
+  LayoutDashboard,
+  Menu,
+  Target,
+  Trophy,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Menu, X, BookOpen, Users, LayoutDashboard, Target, Trophy, GraduationCap } from "lucide-react";
-import { cn } from "@/lib/utils";
-import UserMenu from "@/components/UserMenu";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +33,10 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 hover:opacity-80 transition-opacity">
+            <Link
+              to="/"
+              className="flex-shrink-0 hover:opacity-80 transition-opacity"
+            >
               <h1 className="text-2xl font-bold text-gradient-primary">
                 SNBTKU
               </h1>
@@ -67,16 +79,24 @@ const Navigation = () => {
               size="icon"
               onClick={() => setIsOpen(!isOpen)}
             >
-              {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
-        <div className={cn(
-          "md:hidden transition-all duration-300 ease-in-out",
-          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden"
-        )}>
+        <div
+          className={cn(
+            "md:hidden transition-all duration-300 ease-in-out",
+            isOpen
+              ? "max-h-96 opacity-100"
+              : "max-h-0 opacity-0 overflow-hidden"
+          )}
+        >
           <div className="px-2 pt-2 pb-3 space-y-1">
             {navItems.map((item) => (
               <Link

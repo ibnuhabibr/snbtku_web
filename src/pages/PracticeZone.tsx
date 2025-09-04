@@ -1,42 +1,45 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import Navigation from "@/components/Navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BookOpen, 
-  Target, 
-  Search,
-  Filter,
-  Clock,
-  Star,
-  TrendingUp,
-  Play,
-  BarChart3,
-  CheckCircle,
-  X,
-  Loader2,
-  Flame
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
+import {
+  BarChart3,
+  BookOpen,
+  CheckCircle,
+  Clock,
+  Filter,
+  Flame,
+  Loader2,
+  Play,
+  Search,
+  Target,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
-import Navigation from '@/components/Navigation';
+import { useNavigate } from "react-router-dom";
 
 // Import services and models
-import { 
-  getQuestionSets, 
-  getUserPracticeStats, 
+import {
+  getQuestionSets,
   getRecentActivity,
+  getUserPracticeStats,
+  PracticeFilter,
   PracticeStats,
   QuestionSet,
-  PracticeFilter,
-  RecentActivity
+  RecentActivity,
 } from "@/services/practiceService";
-import { SubtestType, DifficultyLevel } from "@/models/material";
 
 const PracticeZone = () => {
   const [user] = useAuthState(auth);
@@ -52,13 +55,15 @@ const PracticeZone = () => {
 
   // State untuk data
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+    []
+  );
   const [practiceStats, setPracticeStats] = useState<PracticeStats>({
     totalQuestions: 0,
     answeredQuestions: 0,
     accuracy: 0,
-    averageTime: '0:00',
-    streak: 0
+    averageTime: "0:00",
+    streak: 0,
   });
 
   // State untuk loading
@@ -73,14 +78,14 @@ const PracticeZone = () => {
     { value: "TPS", label: "Tes Potensi Skolastik" },
     { value: "LITERASI", label: "Literasi Bahasa Indonesia" },
     { value: "MATEMATIKA", label: "Penalaran Matematika" },
-    { value: "PPU", label: "Pengetahuan dan Pemahaman Umum" }
+    { value: "PPU", label: "Pengetahuan dan Pemahaman Umum" },
   ];
 
   const difficulties = [
     { value: "all", label: "Semua Tingkat" },
     { value: "MUDAH", label: "Mudah" },
     { value: "MENENGAH", label: "Menengah" },
-    { value: "SULIT", label: "Sulit" }
+    { value: "SULIT", label: "Sulit" },
   ];
 
   const topics = {
@@ -90,14 +95,14 @@ const PracticeZone = () => {
       { value: "Penalaran Umum", label: "Penalaran Umum" },
       { value: "Penalaran Kuantitatif", label: "Penalaran Kuantitatif" },
       { value: "Pengetahuan Kuantitatif", label: "Pengetahuan Kuantitatif" },
-      { value: "Pemahaman Bacaan", label: "Pemahaman Bacaan" }
+      { value: "Pemahaman Bacaan", label: "Pemahaman Bacaan" },
     ],
     LITERASI: [
       { value: "all", label: "Semua Topik" },
       { value: "Teks Naratif", label: "Teks Naratif" },
       { value: "Teks Eksposisi", label: "Teks Eksposisi" },
       { value: "Teks Argumentasi", label: "Teks Argumentasi" },
-      { value: "Analisis Struktur", label: "Analisis Struktur" }
+      { value: "Analisis Struktur", label: "Analisis Struktur" },
     ],
     MATEMATIKA: [
       { value: "all", label: "Semua Topik" },
@@ -105,7 +110,7 @@ const PracticeZone = () => {
       { value: "Fungsi dan Grafik", label: "Fungsi dan Grafik" },
       { value: "Geometri", label: "Geometri" },
       { value: "Trigonometri", label: "Trigonometri" },
-      { value: "Statistika dan Peluang", label: "Statistika dan Peluang" }
+      { value: "Statistika dan Peluang", label: "Statistika dan Peluang" },
     ],
     PPU: [
       { value: "all", label: "Semua Topik" },
@@ -113,102 +118,103 @@ const PracticeZone = () => {
       { value: "Geografi", label: "Geografi" },
       { value: "Ekonomi", label: "Ekonomi" },
       { value: "Sosiologi", label: "Sosiologi" },
-      { value: "Kewarganegaraan", label: "Kewarganegaraan" }
-    ]
+      { value: "Kewarganegaraan", label: "Kewarganegaraan" },
+    ],
   };
 
   // Fungsi untuk mengambil data dari Firestore
   const fetchQuestionSets = async (resetPagination = false) => {
     if (!user) return;
-    
+
     try {
       setIsLoadingQuestionSets(true);
-      
+
       // Buat filter berdasarkan state
       const filter: PracticeFilter = {
         searchQuery: searchQuery,
-        subtest: selectedSubtest !== 'all' ? selectedSubtest : undefined,
-        difficulty: selectedDifficulty !== 'all' ? selectedDifficulty : undefined,
-        topic: selectedTopic !== 'all' ? selectedTopic : undefined
+        subtest: selectedSubtest !== "all" ? selectedSubtest : undefined,
+        difficulty:
+          selectedDifficulty !== "all" ? selectedDifficulty : undefined,
+        topic: selectedTopic !== "all" ? selectedTopic : undefined,
       };
-      
+
       // Reset pagination jika diperlukan
       const paginationDoc = resetPagination ? null : lastDoc;
-      
+
       // Ambil data dari Firestore
       const result = await getQuestionSets(filter, paginationDoc);
-      
+
       // Update state
       if (resetPagination) {
         setQuestionSets(result.questionSets);
       } else {
-        setQuestionSets(prev => [...prev, ...result.questionSets]);
+        setQuestionSets((prev) => [...prev, ...result.questionSets]);
       }
-      
+
       setLastDoc(result.lastDoc);
       setHasMore(result.questionSets.length > 0);
     } catch (error) {
-      console.error('Error fetching question sets:', error);
+      console.error("Error fetching question sets:", error);
       toast({
-        title: 'Error',
-        description: 'Gagal mengambil data soal latihan',
-        variant: 'destructive'
+        title: "Error",
+        description: "Gagal mengambil data soal latihan",
+        variant: "destructive",
       });
     } finally {
       setIsLoadingQuestionSets(false);
     }
   };
-  
+
   // Fungsi untuk mengambil statistik latihan
   const fetchPracticeStats = async () => {
     if (!user) return;
-    
+
     try {
       setIsLoadingStats(true);
       const stats = await getUserPracticeStats(user.uid);
       setPracticeStats(stats);
     } catch (error) {
-      console.error('Error fetching practice stats:', error);
+      console.error("Error fetching practice stats:", error);
       toast({
-        title: 'Error',
-        description: 'Gagal mengambil statistik latihan',
-        variant: 'destructive'
+        title: "Error",
+        description: "Gagal mengambil statistik latihan",
+        variant: "destructive",
       });
     } finally {
       setIsLoadingStats(false);
     }
   };
-  
+
   // Fungsi untuk mengambil aktivitas terbaru
   const fetchRecentActivity = async () => {
     if (!user) return;
-    
+
     try {
       setIsLoadingActivities(true);
       const activities = await getRecentActivity(user.uid);
       setRecentActivities(activities);
     } catch (error) {
-      console.error('Error fetching recent activity:', error);
+      console.error("Error fetching recent activity:", error);
       toast({
-        title: 'Error',
-        description: 'Gagal mengambil aktivitas terbaru',
-        variant: 'destructive'
+        title: "Error",
+        description: "Gagal mengambil aktivitas terbaru",
+        variant: "destructive",
       });
     } finally {
       setIsLoadingActivities(false);
     }
   };
-  
+
   // Fungsi untuk memulai latihan soal
   const handleStartPractice = (questionSetId: string) => {
     navigate(`/practice/${questionSetId}`);
   };
-  
+
   // Fungsi untuk me-review hasil latihan
   const handleReviewPractice = (resultId: string) => {
     navigate(`/practice/result/${resultId}`);
   };
-  
+
   // Fungsi untuk me-reset filter
   const handleResetFilter = () => {
     setSelectedSubtest("all");
@@ -216,12 +222,12 @@ const PracticeZone = () => {
     setSelectedTopic("all");
     setSearchQuery("");
   };
-  
+
   // Fungsi untuk menangani perubahan filter
   const handleFilterChange = () => {
     fetchQuestionSets(true);
   };
-  
+
   // Efek untuk mengambil data saat komponen dimount
   useEffect(() => {
     if (user) {
@@ -230,14 +236,14 @@ const PracticeZone = () => {
       fetchQuestionSets(true);
     }
   }, [user]);
-  
+
   // Efek untuk mengambil data saat filter berubah
   useEffect(() => {
     if (user) {
       const timer = setTimeout(() => {
         fetchQuestionSets(true);
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [selectedSubtest, selectedDifficulty, selectedTopic, searchQuery]);
@@ -282,7 +288,10 @@ const PracticeZone = () => {
         {/* Header Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Practice Zone 🎯</h1>
-          <p className="text-muted-foreground">Latihan soal dengan ribuan bank soal berkualitas dan pembahasan lengkap</p>
+          <p className="text-muted-foreground">
+            Latihan soal dengan ribuan bank soal berkualitas dan pembahasan
+            lengkap
+          </p>
         </div>
 
         {/* Stats Overview */}
@@ -291,85 +300,105 @@ const PracticeZone = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Soal</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Total Soal
+                  </p>
                   {isLoadingStats ? (
                     <div className="h-8 flex items-center mt-1">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <h3 className="text-2xl font-bold mt-1">{practiceStats.totalQuestions}</h3>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {practiceStats.totalQuestions}
+                    </h3>
                   )}
                 </div>
                 <BookOpen className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Soal Terjawab</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Soal Terjawab
+                  </p>
                   {isLoadingStats ? (
                     <div className="h-8 flex items-center mt-1">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <h3 className="text-2xl font-bold mt-1">{practiceStats.answeredQuestions}</h3>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {practiceStats.answeredQuestions}
+                    </h3>
                   )}
                 </div>
                 <CheckCircle className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Akurasi</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Akurasi
+                  </p>
                   {isLoadingStats ? (
                     <div className="h-8 flex items-center mt-1">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <h3 className="text-2xl font-bold mt-1">{practiceStats.accuracy}%</h3>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {practiceStats.accuracy}%
+                    </h3>
                   )}
                 </div>
                 <Target className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Waktu Rata-rata</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Waktu Rata-rata
+                  </p>
                   {isLoadingStats ? (
                     <div className="h-8 flex items-center mt-1">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <h3 className="text-2xl font-bold mt-1">{practiceStats.averageTime}</h3>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {practiceStats.averageTime}
+                    </h3>
                   )}
                 </div>
                 <Clock className="h-5 w-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Streak</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Streak
+                  </p>
                   {isLoadingStats ? (
                     <div className="h-8 flex items-center mt-1">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                   ) : (
-                    <h3 className="text-2xl font-bold mt-1">{practiceStats.streak} hari</h3>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {practiceStats.streak} hari
+                    </h3>
                   )}
                 </div>
                 <Flame className="h-5 w-5 text-muted-foreground" />
@@ -404,38 +433,41 @@ const PracticeZone = () => {
                       className="pl-10"
                     />
                   </div>
-                  <Select 
-                    value={selectedSubtest} 
+                  <Select
+                    value={selectedSubtest}
                     onValueChange={(value) => setSelectedSubtest(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih Subtest" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subtests.map(subtest => (
+                      {subtests.map((subtest) => (
                         <SelectItem key={subtest.value} value={subtest.value}>
                           {subtest.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Select 
-                    value={selectedDifficulty} 
+                  <Select
+                    value={selectedDifficulty}
                     onValueChange={(value) => setSelectedDifficulty(value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Tingkat Kesulitan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {difficulties.map(difficulty => (
-                        <SelectItem key={difficulty.value} value={difficulty.value}>
+                      {difficulties.map((difficulty) => (
+                        <SelectItem
+                          key={difficulty.value}
+                          value={difficulty.value}
+                        >
                           {difficulty.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleResetFilter}
                     disabled={isLoadingQuestionSets}
                   >
@@ -464,18 +496,25 @@ const PracticeZone = () => {
                     // Tentukan apakah set soal sudah pernah dikerjakan
                     // Ini hanya placeholder, seharusnya diambil dari data hasil latihan
                     const isCompleted = false;
-                    
+
                     return (
-                      <Card key={set.id} className="hover:shadow-lg transition-shadow">
+                      <Card
+                        key={set.id}
+                        className="hover:shadow-lg transition-shadow"
+                      >
                         <CardHeader>
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <CardTitle className="text-lg mb-2">{set.title}</CardTitle>
+                              <CardTitle className="text-lg mb-2">
+                                {set.title}
+                              </CardTitle>
                               <div className="flex flex-wrap gap-2 mb-3">
                                 <Badge className={getSubtestColor(set.subtest)}>
                                   {set.subtest}
                                 </Badge>
-                                <Badge className={getDifficultyColor(set.difficulty)}>
+                                <Badge
+                                  className={getDifficultyColor(set.difficulty)}
+                                >
                                   {set.difficulty}
                                 </Badge>
                               </div>
@@ -497,21 +536,23 @@ const PracticeZone = () => {
                                 {set.estimatedTime}
                               </span>
                             </div>
-                            
+
                             {/* Placeholder untuk statistik */}
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span>Tingkat Kesulitan</span>
-                                <span className="font-medium">{set.difficulty}</span>
+                                <span className="font-medium">
+                                  {set.difficulty}
+                                </span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span>Topik</span>
                                 <span className="font-medium">{set.topic}</span>
                               </div>
                             </div>
-                            
-                            <Button 
-                              className="w-full" 
+
+                            <Button
+                              className="w-full"
                               variant={isCompleted ? "outline" : "default"}
                               onClick={() => handleStartPractice(set.id)}
                             >
@@ -525,20 +566,25 @@ const PracticeZone = () => {
                   })}
                 </div>
 
-                {!isLoadingQuestionSets && filteredQuestionSets.length === 0 && (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-lg font-semibold mb-2">Tidak ada soal ditemukan</h3>
-                      <p className="text-muted-foreground">Coba ubah filter atau kata kunci pencarian</p>
-                    </CardContent>
-                  </Card>
-                )}
-                
+                {!isLoadingQuestionSets &&
+                  filteredQuestionSets.length === 0 && (
+                    <Card className="text-center py-12">
+                      <CardContent>
+                        <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-semibold mb-2">
+                          Tidak ada soal ditemukan
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Coba ubah filter atau kata kunci pencarian
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
                 {hasMore && (
                   <div className="flex justify-center mt-8">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => fetchQuestionSets(false)}
                       disabled={isLoadingQuestionSets}
                     >
@@ -573,23 +619,40 @@ const PracticeZone = () => {
                 ) : (
                   <div className="space-y-4">
                     {recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div
+                        key={activity.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div className="flex-1">
                           <h4 className="font-medium">{activity.title}</h4>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                             {/* @ts-ignore */}
-                            <span>{(activity as any).questionCount || 0} soal</span>
+                            <span>
+                              {(activity as any).questionCount || 0} soal
+                            </span>
                             <span>Skor: {activity.score}%</span>
                             <span>{activity.time}</span>
                             <span>{String(activity.date)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={activity.score >= 80 ? "default" : activity.score >= 60 ? "secondary" : "destructive"}>
-                            {activity.score >= 80 ? "Excellent" : activity.score >= 60 ? "Good" : "Needs Improvement"}
+                          <Badge
+                            variant={
+                              activity.score >= 80
+                                ? "default"
+                                : activity.score >= 60
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {activity.score >= 80
+                              ? "Excellent"
+                              : activity.score >= 60
+                              ? "Good"
+                              : "Needs Improvement"}
                           </Badge>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleReviewPractice(activity.id)}
                           >
@@ -598,12 +661,16 @@ const PracticeZone = () => {
                         </div>
                       </div>
                     ))}
-                    
+
                     {!isLoadingActivities && recentActivities.length === 0 && (
                       <div className="text-center py-8">
                         <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                        <h3 className="text-lg font-semibold mb-2">Belum ada aktivitas</h3>
-                        <p className="text-muted-foreground">Mulai latihan soal untuk melihat aktivitas terbaru</p>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Belum ada aktivitas
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Mulai latihan soal untuk melihat aktivitas terbaru
+                        </p>
                       </div>
                     )}
                   </div>
