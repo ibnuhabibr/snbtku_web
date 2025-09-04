@@ -170,3 +170,21 @@ export const withErrorBoundary = <P extends object>(
 
   return WrappedComponent;
 };
+
+{
+  "buildCommand": "npm run build:prod",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    // Security & cache headers...
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
