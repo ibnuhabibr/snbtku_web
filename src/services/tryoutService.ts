@@ -13,7 +13,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit,
+  limit as firestoreLimit,
   startAfter,
   Timestamp,
   DocumentData,
@@ -75,9 +75,9 @@ export const getTryouts = async (
     
     // Menambahkan pagination jika ada lastDoc
     if (lastDoc) {
-      tryoutsRef = query(tryoutsRef, startAfter(lastDoc), limit(pageSize));
+      tryoutsRef = query(tryoutsRef, startAfter(lastDoc), firestoreLimit(pageSize));
     } else {
-      tryoutsRef = query(tryoutsRef, limit(pageSize));
+      tryoutsRef = query(tryoutsRef, firestoreLimit(pageSize));
     }
     
     const snapshot = await getDocs(tryoutsRef);
@@ -291,7 +291,7 @@ export const getUserTryoutResults = async (userId: string, limit?: number): Prom
     );
     
     if (limit) {
-      resultsRef = query(resultsRef, limit(limit));
+      resultsRef = query(resultsRef, firestoreLimit(limit));
     }
     
     const snapshot = await getDocs(resultsRef);

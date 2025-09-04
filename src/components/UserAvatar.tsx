@@ -20,8 +20,8 @@ const UserAvatar = ({ user, className }: UserAvatarProps) => {
   return (
     <Avatar className={cn('border border-border', className)}>
       <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || 'User'} />
-      <AvatarFallback className="bg-primary/10 text-primary">
-        {getInitials(user?.displayName)}
+            <AvatarFallback className="bg-primary text-primary-foreground">
+        {getInitials(user?.displayName || '')}
       </AvatarFallback>
     </Avatar>
   );

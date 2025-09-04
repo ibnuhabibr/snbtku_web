@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, BookOpen, Users, LayoutDashboard, Target, Trophy, GraduationCap, FileText } from "lucide-react";
+import { Menu, X, BookOpen, Users, LayoutDashboard, Target, Trophy, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import UserMenu from "@/components/UserMenu";
 
@@ -17,13 +17,6 @@ const Navigation = () => {
     { name: "Try Out", href: "/tryout", icon: Trophy },
     { name: "Leaderboard", href: "/leaderboard", icon: Users },
   ];
-
-  const handleSmoothScroll = (targetId: string) => {
-    const element = document.getElementById(targetId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <nav className="bg-white/95 backdrop-blur-md border-b border-border sticky top-0 z-50">

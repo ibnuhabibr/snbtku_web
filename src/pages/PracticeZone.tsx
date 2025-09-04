@@ -577,10 +577,11 @@ const PracticeZone = () => {
                         <div className="flex-1">
                           <h4 className="font-medium">{activity.title}</h4>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                            <span>{activity.questionCount} soal</span>
+                            {/* @ts-ignore */}
+                            <span>{(activity as any).questionCount || 0} soal</span>
                             <span>Skor: {activity.score}%</span>
                             <span>{activity.time}</span>
-                            <span>{activity.date}</span>
+                            <span>{String(activity.date)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

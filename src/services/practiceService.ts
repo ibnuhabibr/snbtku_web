@@ -13,7 +13,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit,
+  limit as firestoreLimit,
   startAfter,
   Timestamp,
   DocumentData,
@@ -30,6 +30,17 @@ import {
   PracticeFilter,
   RecentActivity
 } from '@/models/practice';
+
+// Export types untuk digunakan di komponen
+export type { 
+  Question,
+  QuestionSet,
+  PracticeResult,
+  UserAnswer,
+  PracticeStats,
+  PracticeFilter,
+  RecentActivity
+};
 
 // Nama koleksi di Firestore
 const QUESTIONS_COLLECTION = 'questions';
@@ -71,9 +82,9 @@ export const getQuestionSets = async (
     
     // Menambahkan pagination jika ada lastDoc
     if (lastDoc) {
-      questionSetsRef = query(questionSetsRef, startAfter(lastDoc), limit(pageSize));
+      questionSetsRef = query(questionSetsRef, startAfter(lastDoc), firestoreLimit(pageSize));
     } else {
-      questionSetsRef = query(questionSetsRef, limit(pageSize));
+      questionSetsRef = query(questionSetsRef, firestoreLimit(pageSize));
     }
     
     const snapshot = await getDocs(questionSetsRef);
@@ -98,11 +109,11 @@ export const getQuestionSets = async (
           set.description.toLowerCase().includes(searchLower) ||
           set.topic.toLowerCase().includes(searchLower)
         ),
-        lastDoc: lastVisible
+        lastDoc: lastVisible || null
       };
     }
     
-    return { questionSets, lastDoc: lastVisible };
+    return { questionSets, lastDoc: lastVisible || null };
   } catch (error) {
     console.error('Error getting question sets:', error);
     throw error;
@@ -360,7 +371,7 @@ export const getUserPracticeResults = async (userId: string, limit?: number): Pr
     );
     
     if (limit) {
-      resultsRef = query(resultsRef, limit(limit));
+      resultsRef = query(resultsRef, firestoreLimit(limit));
     }
     
     const snapshot = await getDocs(resultsRef);
@@ -478,7 +489,7 @@ export const getRecentActivity = async (userId: string, count: number = 5): Prom
       collection(db, PRACTICE_RESULTS_COLLECTION),
       where('userId', '==', userId),
       orderBy('completedAt', 'desc'),
-      limit(count)
+      firestoreLimit(count)
     );
     
     const snapshot = await getDocs(resultsRef);
@@ -510,7 +521,8 @@ export const getRecentActivity = async (userId: string, count: number = 5): Prom
         const timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         
         // Format tanggal
-        const completedDate = resultData.completedAt.toDate();
+        // @ts-ignore
+        const completedDate = resultData.completedAt?.toDate ? resultData.completedAt.toDate() : new Date(resultData.completedAt);
         const now = new Date();
         let dateFormatted: string;
         

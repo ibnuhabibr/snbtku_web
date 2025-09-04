@@ -244,7 +244,8 @@ export class PerformanceMonitor {
       entries.forEach((entry) => {
         this.analytics.trackPerformance({
           name: 'first_input_delay',
-          value: entry.processingStart - entry.startTime,
+          // @ts-ignore
+          value: (entry as any).processingStart ? (entry as any).processingStart - entry.startTime : 0,
           unit: 'ms',
           timestamp: Date.now(),
         });
